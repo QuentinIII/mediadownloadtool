@@ -61,17 +61,6 @@ Au-delà de 1080p, YouTube encode quasiment tout en **AV1** ou **VP9**. Le `.mp4
 
 ## Construire l'exe soi-même
 
-Automatique : GitHub Actions (`.github/workflows/build-exe.yml`) construit l'exe sur Windows, le teste (`--selftest`) et le publie :
-
-```bash
-git tag v1.0.1
-git push origin v1.0.1      # -> nouvelle Release avec l'exe
-```
-
-Ou depuis GitHub : **Actions → Build portable exe → Run workflow**
-- champ *version* rempli (ex. `1.0.0`) → Release publiée avec l'exe
-- champ vide → exe dispo en artefact du run, sans release
-
 En local (sous Windows) :
 
 ```bash
