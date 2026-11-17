@@ -10,3 +10,6 @@ venv/
 *.m4a
 .DS_Store
 Thumbs.db
+build/
+dist/
+*.spec

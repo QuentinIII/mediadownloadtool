@@ -8,10 +8,16 @@ Usage perso uniquement : ne télécharge que du contenu que tu as le droit de r�
 """
 import os
 import sys
+import json
 import subprocess
 import threading
 import queue
 import traceback
+
+APP_VERSION = "1.0.0"
+RELEASES_URL = "https://github.com/QuentinIII/mediadownloadtool/releases/latest"
+FROZEN = getattr(sys, "frozen", False)          # True dans l'exe PyInstaller
+BUNDLE_DIR = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 
 # ---------------------------------------------------------------- dépendances
 DEPS = [
@@ -56,18 +62,87 @@ def ensure_deps():
             pass
 
 
-ensure_deps()
+if not FROZEN:          # l'exe embarque déjà tout
+    ensure_deps()
+
+import yt_dlp
+
+
+def _bundled(name):
+    exe = name + (".exe" if sys.platform.startswith("win") else "")
+    p = os.path.join(BUNDLE_DIR, "bin", exe)
+    return p if os.path.isfile(p) else None
+
+
+def find_ffmpeg():
+    p = _bundled("ffmpeg")
+    if p:
+        return p
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return None
+
+
+def find_deno():
+    p = _bundled("deno")
+    if p:
+        return p
+    try:
+        import deno
+        return deno.find_deno_bin()
+    except Exception:
+        return None
+
+
+FFMPEG_PATH = find_ffmpeg()
+DENO_PATH = find_deno()
+
+
+def selftest(out_file):
+    """Vérifie que tout est bien embarqué (utilisé par la CI sur l'exe)."""
+    res = {"app": APP_VERSION, "frozen": FROZEN, "yt_dlp": yt_dlp.version.__version__}
+    ok = True
+    for key, path, arg in (("ffmpeg", FFMPEG_PATH, "-version"), ("deno", DENO_PATH, "--version")):
+        try:
+            out = subprocess.run([path, arg], capture_output=True, text=True, timeout=60)
+            res[key] = out.stdout.splitlines()[0] if out.returncode == 0 else f"rc={out.returncode}"
+            ok &= out.returncode == 0
+        except Exception as e:
+            res[key] = f"ERREUR: {e}"
+            ok = False
+    try:
+        import yt_dlp_ejs
+        res["yt_dlp_ejs"] = getattr(yt_dlp_ejs, "version", "ok")
+    except Exception as e:
+        res["yt_dlp_ejs"] = f"ERREUR: {e}"
+        ok = False
+    try:
+        with yt_dlp.YoutubeDL({"quiet": True, "js_runtimes": {"deno": {"path": DENO_PATH}}}) as y:
+            res["extractors"] = len(list(yt_dlp.extractor.gen_extractor_classes()))
+            ok &= res["extractors"] > 100
+    except Exception as e:
+        res["ytdl"] = f"ERREUR: {e}"
+        ok = False
+    try:
+        import tkinter  # noqa: F401
+        res["tkinter"] = "ok"
+    except Exception as e:
+        res["tkinter"] = f"ERREUR: {e}"
+        ok = False if FROZEN else ok
+    res["ok"] = bool(ok)
+    with open(out_file, "w", encoding="utf-8") as f:
+        json.dump(res, f, indent=2, ensure_ascii=False)
+    sys.exit(0 if ok else 1)
+
+
+if len(sys.argv) >= 3 and sys.argv[1] == "--selftest":
+    selftest(sys.argv[2])
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-import yt_dlp
-import imageio_ffmpeg
-
-try:
-    import deno
-    DENO_PATH = deno.find_deno_bin()
-except Exception:
-    DENO_PATH = None
+import webbrowser
 
 
 # ---------------------------------------------------------------- logger yt-dlp
@@ -95,7 +170,7 @@ class QLogger:
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Media Download Tool — MP3 / MP4")
+        self.title(f"Media Download Tool {APP_VERSION} — MP3 / MP4")
         self.geometry("760x580")
         self.minsize(560, 420)
         self.q = queue.Queue()
@@ -177,7 +252,7 @@ class App(tk.Tk):
         self.log = tk.Text(f, height=12, state="disabled", wrap="word")
         self.log.pack(fill="both", expand=True, **pad)
 
-        self._log(f"yt-dlp {yt_dlp.version.__version__} | Deno : {'OK' if DENO_PATH else 'ABSENT'}")
+        self._log(f"yt-dlp {yt_dlp.version.__version__} | Deno : {'OK' if DENO_PATH else 'ABSENT'} | ffmpeg : {'OK' if FFMPEG_PATH else 'ABSENT'}")
 
     def _mode_changed(self):
         self.opt_mp3.pack_forget()
@@ -245,6 +320,12 @@ class App(tk.Tk):
         self.status.set("Arrêt demandé…")
 
     def update_ytdlp(self):
+        if FROZEN:
+            self._log("Version .exe : télécharge la dernière release (yt-dlp à jour) :")
+            self._log(RELEASES_URL)
+            webbrowser.open(RELEASES_URL)
+            return
+
         def job():
             self.q.put(("log", "Mise à jour de yt-dlp, ejs et Deno…"))
             try:
@@ -306,7 +387,7 @@ class App(tk.Tk):
             "retries": 10,
             "fragment_retries": 10,
             "overwrites": False,
-            "ffmpeg_location": imageio_ffmpeg.get_ffmpeg_exe(),
+            "ffmpeg_location": FFMPEG_PATH,
             "postprocessors": pps,
             "writethumbnail": self.cover.get(),
             "progress_hooks": [self._hook],

@@ -16,7 +16,17 @@ Petite appli graphique (Python + Tkinter) basée sur [yt-dlp](https://github.com
 - Bouton **Mettre à jour yt-dlp** (à utiliser quand YouTube casse quelque chose)
 - **Zéro install manuelle** : au premier lancement, l'appli installe yt-dlp, ffmpeg (via `imageio-ffmpeg`) et Deno (le runtime JavaScript requis par YouTube depuis yt-dlp 2025.11)
 
-## Installation
+## Version portable (.exe Windows) — le plus simple
+
+1. Aller dans [**Releases**](https://github.com/QuentinIII/mediadownloadtool/releases/latest)
+2. Télécharger `mediadownloadtool-vX.Y.Z-windows-x64.exe`
+3. Double-clic. C'est tout : pas de Python, pas d'installation, ffmpeg et Deno sont inclus.
+
+> Windows SmartScreen peut afficher « Windows a protégé votre ordinateur » (exe non signé) → **Informations complémentaires** → **Exécuter quand même**.
+> Le premier démarrage prend quelques secondes (l'exe se décompresse).
+> Si YouTube casse un jour, télécharger la dernière release (le bouton « Mettre à jour » ouvre la page).
+
+## Installation depuis le code source
 
 1. Installer **Python 3.10+** depuis [python.org](https://www.python.org/downloads/) (Windows : cocher **« Add Python to PATH »**).
 2. Télécharger ce dépôt (`Code` → `Download ZIP`) ou :
@@ -48,6 +58,29 @@ Au-delà de 1080p, YouTube encode quasiment tout en **AV1** ou **VP9**. Le `.mp4
 | `Deno : ABSENT` dans le log | `pip install -U deno` puis relancer |
 | `No module named tkinter` (Linux) | `sudo apt install python3-tk` |
 | Le `.bat` se ferme tout de suite | Python n'est pas dans le PATH → réinstaller Python en cochant « Add Python to PATH » |
+
+## Construire l'exe soi-même
+
+Automatique : GitHub Actions (`.github/workflows/build-exe.yml`) construit l'exe sur Windows, le teste (`--selftest`) et le publie :
+
+```bash
+git tag v1.0.1
+git push origin v1.0.1      # -> nouvelle Release avec l'exe
+```
+
+Ou bouton **Actions → Build portable exe → Run workflow** (exe en artefact, sans release).
+
+En local (sous Windows) :
+
+```bash
+pip install -r requirements.txt pyinstaller
+python build.py             # -> dist/mediadownloadtool.exe
+```
+
+## Licence
+
+Code sous licence [MIT](LICENSE).
+L'exe embarque des composants tiers sous leur propre licence : [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense), [FFmpeg](https://ffmpeg.org/legal.html) (LGPL/GPL, binaire fourni par [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg)), [Deno](https://github.com/denoland/deno) (MIT).
 
 ## Usage
 
