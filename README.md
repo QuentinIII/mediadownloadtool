@@ -68,7 +68,9 @@ git tag v1.0.1
 git push origin v1.0.1      # -> nouvelle Release avec l'exe
 ```
 
-Ou bouton **Actions → Build portable exe → Run workflow** (exe en artefact, sans release).
+Ou depuis GitHub : **Actions → Build portable exe → Run workflow**
+- champ *version* rempli (ex. `1.0.0`) → Release publiée avec l'exe
+- champ vide → exe dispo en artefact du run, sans release
 
 En local (sous Windows) :
 
